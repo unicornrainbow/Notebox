@@ -1,0 +1,251 @@
+#! /usr/bin/env sh
+
+# Notebox: Command line note taking tool.
+# Copyright (c) Blake Taylor 2014
+# This is free software. Please see the LICENSE and COPYING files for details.
+
+PROG_NAME=$(basename $0)
+
+# Notebox uses ~/Notebox/notes as the default root. Set NBX_NOTES_ROOT in you shell to
+# override.
+
+# example:
+#
+#     export NBX_NOTES_ROOT="~/Notes"
+#
+: ${NBX_NOTES_ROOT:="$HOME/Notebox/notes"}
+: ${NBX_FILE_NAME_FORMAT:="+%T"}
+
+die(){
+  echo "${@}"
+  exit 1
+}
+
+## commands ##
+
+nbx_init(){
+  if [ ! -d $NBX_NOTES_ROOT ]; then
+    mkdir -p $NBX_NOTES_ROOT
+  fi
+}
+
+nbx_new(){
+  nbx_init
+
+  DATE_PATH="$(date +%Y)/$(date +%m)/$(date +%d)"
+
+  if [ "$1" != '' ]; then
+    TOPICS_DIR="$NBX_NOTES_ROOT/$1"
+    # Prompt or abort if the topic directory doesn't exist.
+    if [ ! -d $TOPICS_DIR ]; then
+      echo "Do you wish to create topic $1?"
+      select yn in "Yes" "No"; do
+        case $yn in
+          Yes ) break;;
+          No ) return;;
+        esac
+      done
+    fi
+    DIR="$TOPICS_DIR/entries/$DATE_PATH"
+  else
+    DIR="$NBX_NOTES_ROOT/entries/$DATE_PATH"
+  fi
+  mkdir -p $DIR
+
+  # Generate file name based on the current time.
+  FILE_NAME="$(date $NBX_FILE_NAME_FORMAT).txt"
+
+  eval $EDITOR "$DIR/$FILE_NAME"
+
+  # If tracking with git...
+  if [ -d "$NBX_NOTES_ROOT/.git" ]; then
+    # Auto-commit
+    pushd $NBX_NOTES_ROOT > /dev/null
+    git add -A > /dev/null
+    git commit -m "Create $DATE_PATH/$FILE_NAME" > /dev/null
+    popd > /dev/null
+
+  fi
+}
+
+nbx_last(){
+  if [ -d "$NBX_NOTES_ROOT" ]; then
+    DATE_PATH="$(date +%Y)/$(date +%m)/$(date +%d)"
+
+    if [ "$1" != '' ]; then
+      DIR="$NBX_NOTES_ROOT/$1/entries/$DATE_PATH"
+    else
+      DIR="$NBX_NOTES_ROOT/entries/$DATE_PATH"
+    fi
+
+    FILE_PATH=$DIR/$(ls -t $DIR | head -n 1)
+    eval $EDITOR $FILE_PATH
+
+    # If there are changes, commit them to the notes git repo.
+    pushd $NBX_NOTES_ROOT > /dev/null
+    FILE_NAME=$(basename $FILE_PATH)
+    git add -A > /dev/null
+    git commit -m "Edit $DATE_PATH/$FILE_NAME" > /dev/null
+    popd > /dev/null
+  fi
+}
+
+# List notes reverse chronologically.
+nbx_ls(){
+  if [ -d "$NBX_NOTES_ROOT" ]; then
+    if [ "$1" != '' ]; then # Topic?
+      OUTPUT=$(mktemp -t notes)
+      DIR="$NBX_NOTES_ROOT/$1/entries"
+    else
+      OUTPUT=$(mktemp -t notebooks)
+      DIR="$NBX_NOTES_ROOT/entries"
+    fi
+
+    # TODO: Remove limit of 100, but this need to be more efficient before doing so.
+    for file in $(find $DIR -type f | sort -r | head -n 100); do
+      echo "\n=== $file ===\n" >> $OUTPUT
+      cat $file >> $OUTPUT
+      echo "\n" >> $OUTPUT
+    done
+    cat $OUTPUT | less
+    rm $OUTPUT
+  fi
+}
+
+# Show created topics.
+nbx_topics(){
+  if [ -d $NBX_NOTES_ROOT ]; then
+    if [ "$1" != '' ]; then
+      DIR="$NBX_NOTES_ROOT/$1"
+    else
+      DIR="$NBX_NOTES_ROOT"
+    fi
+
+    # All directories are topics except for the entries directory.
+    ls -1 $DIR | grep -v entries
+  fi
+}
+
+
+# Grep notes and show result.
+nbx_grep(){
+  if [ -d "$NBX_NOTES_ROOT" ]; then
+    grep -R $1 -C 10 -i --exclude-dir=.git $NBX_NOTES_ROOT
+  fi
+}
+
+
+# Run a git command against the notebox repo.
+nbx_git(){
+  [ -d "$NBX_NOTES_ROOT" ] || die 'Root not found. Initialize with `nbx init`'
+
+  pushd $NBX_NOTES_ROOT > /dev/null
+  git $@
+  popd > /dev/null
+}
+
+# Shows git log for a notebox file.
+#
+#     nbx log [file]
+#
+nbx_log(){
+  nbx_git log -u "$1"
+}
+
+# Print help.
+nbx_help(){
+  case $1 in
+    "")
+      echo "Usage: $PROG_NAME <command> [<args>]\n"
+      echo ""
+      echo "Commands:"
+      echo "    new         Create new note"
+      echo "    last        Edit last note"
+      echo "    ls          List notes"
+      echo "    topics      List topics"
+      echo "    grep        Grep notes"
+      echo "    git         Run git command"
+      echo "    log         Show git commit log"
+      echo ""
+      echo "see '$PROG_NAME help <command>' for more information on a specific command"
+      echo ""
+      echo "Copyright (c) Blake Taylor"
+      echo "Notebox is open source and freely distributable"
+      echo ""
+      exit 0
+      ;;
+    "new")
+      echo "Creates new note. Pass topic to make note specific to it. Save an"
+      echo "close when finished."
+      echo ""
+      echo "Usage: $PROG_NAME new [topic]\n"
+      exit 0
+      ;;
+    "last")
+      echo "Opens last note for editing. Save and close when finished."
+      echo ""
+      echo "Usage: $PROG_NAME new [topic]\n"
+      exit 0
+      ;;
+
+    "ls")
+      echo "List notes. If topic passed, will list notes specific to that topic."
+      echo ""
+      echo "Usage: $PROG_NAME ls [topic]\n"
+      exit 0
+      ;;
+    "topics")
+      echo "List topics which have been created. If topic passed, list"
+      echo "subtopics."
+      echo ""
+      echo "Usage: $PROG_NAME topics [topic]\n"
+      exit 0
+      ;;
+    "git")
+      echo "Run git commands against notebox git repo"
+      echo ""
+      echo "Usage: $PROG_NAME git <args>\n"
+      exit 0
+      ;;
+
+    "grep")
+      echo "Grep notes for keyword"
+      echo ""
+      echo "Usage: $PROG_NAME grep <keyword>\n"
+      exit 0
+      ;;
+
+    "log")
+      echo "Show git log"
+      echo ""
+      echo "Usage: $PROG_NAME log [file]\n"
+      exit 0
+      ;;
+    *)
+      echo "Error: no help available for '$command'." >&2
+      echo "    Run '$PROG_NAME help' for a list of known commands." >&2
+      exit 1
+      ;;
+  esac
+
+}
+
+command=$1
+case $command in
+  "" | "help")
+    shift
+    nbx_help $@
+    ;;
+  "--version" | "-v")
+    echo "Notebox ($PROG_NAME) version 0.8.0"
+    ;;
+  *)
+    shift
+    nbx_${command} $@
+    if [ $? = 127 ]; then
+      echo "Error: '$command' is not a known command." >&2
+      echo "       Run '$PROG_NAME --help' for a list of known commands." >&2
+      exit 1
+    fi
+    ;;
+esac
