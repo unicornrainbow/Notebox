@@ -2,7 +2,7 @@
 
 # Notebox: Command line note taking tool.
 # Copyright (c) Blake Taylor 2014
-# This is free software. Please see the LICENSE and COPYING files for details.
+# This is free software. Please see the LICENSE file for details.
 
 PROG_NAME=$(basename $0)
 
