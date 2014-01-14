@@ -111,7 +111,7 @@ a directory reflecting the current date.
 
 For example: Notes from December 4th 2013 would be stored in `entries/2013/12/04`.
 
-Within that directory, the file is stores according to a timestamp of when the
+Within that directory, the file is stored according to a timestamp of when the
 file was generated, and can carry any file extension.
 
 Example: `entries/2013/12/04/12:23:25.txt`.
@@ -126,6 +126,23 @@ dimension with means to track changes to temporal files over time.
 Considering the format is well known, local and plain text, you can always
 switch tools and take your notes wherever you go. Notes are private, and never
 leave you system unless you tell them too.
+
+### Topics
+
+The Notebox Format support dividing notes up by topic. To place a note within a
+topic, the standard Notebox path to the note is prefixed with the topic. For
+example, to specify the note from above to be within the "candy" topic, the
+following path would be used.
+
+    candy/entries/2013/12/04/12:23:25.txt
+
+Topics can also include any number of sub topics, which are specified as sub
+directories. So, you could have a candy/chocolate note as follows.
+
+    candy/chocolate/entries/2013/12/04/12:23:25.txt
+
+Note: Because Notebox uses the `entries` directory to store the actual entries,
+entries should be avoided as a topic. This may change in the future.
 
 ## Contributions
 
