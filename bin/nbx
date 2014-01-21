@@ -6,7 +6,7 @@
 
 PROG_NAME=$(basename $0)
 
-# Notebox uses ~/Notebox/notes as the default root. Set NBX_NOTES_ROOT in you shell to
+# Notebox uses ~/Notebox/notes as the default root. Set NBX_NOTES_ROOT in your shell to
 # override.
 
 # example:
